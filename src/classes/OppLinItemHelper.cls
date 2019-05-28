@@ -3,54 +3,51 @@
  */
 
 public with sharing class OppLinItemHelper {
-    public static List<OpportunityLineItem> getOppLineItemsWithPriceBookByIds(List<OpportunityLineItem> oliId){
-        return [Select Id,
-                    OpportunityId,
-                    Change_Product__c,
-                    UnitPrice,
-                    Quantity,
-                    PricebookEntry.Pricebook2.Id
-                    From OpportunityLineItem
-                    WHERE Id in: oliId
-        ];
-    }
-
-
-    public static List<PricebookEntry> getPricebookIEntries(List<Id> productsId){
-        List<PricebookEntry> pricebookEntries = [SELECT Id,
+    public static Map<Id, OpportunityLineItem> getOppLineItemsInformation(List<OpportunityLineItem> opportunityLineItems){
+        return new Map<Id, OpportunityLineItem>([SELECT Id,
                                                         Name,
+                                                        Change_Product__c,
                                                         Product2Id,
-                                                        Pricebook2Id,
-                                                        UnitPrice,
-                                                        Pricebook2.IsStandard
-                                                        FROM PricebookEntry
-                                                        WHERE Product2Id IN :productsId
+                                                        PricebookEntry.Pricebook2Id,
+                                                        Quantity,
+                                                        OpportunityId
+                                                    FROM OpportunityLineItem
+                                                    WHERE Id IN: opportunityLineItems
+        ]);
+    }
+
+    public static Map<Id, Map<Id, PricebookEntry>> getIdPricebookToProductIdWithPricebookEntry(Map<Id, OpportunityLineItem> oppLineItemsInformation){
+        List<Id> productsId = new List<Id>();
+        List<Id> pricebookIds = new List<Id>();
+        Map<Id, Map<Id, PricebookEntry>> idPricebookToProductIdWithPricebookEntry = new Map<Id, Map<Id, PricebookEntry>>();
+        List<PricebookEntry> pricebookEntries = new  List<PricebookEntry>();
+
+        for(OpportunityLineItem elem: oppLineItemsInformation.values()){
+            productsId.add(elem.Change_Product__c);
+            pricebookIds.add(elem.PricebookEntry.Pricebook2Id);
+        }
+
+        pricebookEntries = [SELECT Id,
+                            Product2Id,
+                            Pricebook2Id,
+                            UnitPrice
+                            FROM PricebookEntry
+                            WHERE Product2Id IN: productsId
+                            AND Pricebook2Id IN:pricebookIds
         ];
 
-        return pricebookEntries;
-    }
-
-    public static Map<Id, List<Id>> getProductIdsWithPricebookIds(List<PricebookEntry> pricebookEntries){
-        Map<Id, List<Id>> result = new Map<Id, List<Id>>();
-
         for (PricebookEntry elem: pricebookEntries){
-            if(result.containsKey(elem.Product2Id)){
-                result.get(elem.Product2Id).add(elem.Pricebook2Id);
-            }else{
-                result.put(elem.Product2Id, new List<Id>{elem.Pricebook2Id});
+            if (idPricebookToProductIdWithPricebookEntry.containsKey(elem.Product2Id)) {
+                if (!idPricebookToProductIdWithPricebookEntry.get(elem.Product2Id).containsKey(elem.Pricebook2Id)) {
+                    idPricebookToProductIdWithPricebookEntry.get(elem.Product2Id).put(elem.Pricebook2Id, elem);
+                }
+
+            }else {
+                Map<Id, PricebookEntry> pricebookEntryMap = new Map<Id, PricebookEntry>();
+                pricebookEntryMap.put(elem.Pricebook2Id, elem);
+                idPricebookToProductIdWithPricebookEntry.put(elem.Product2Id, pricebookEntryMap);
             }
         }
-
-        return result;
-    }
-
-    public static Id getStandardPricebookId(List<PricebookEntry> pricebookEntries){
-        for (PricebookEntry elem: pricebookEntries){
-            if (elem.Pricebook2.IsStandard) {
-                return elem.Pricebook2.Id;
-            }
-        }
-
-        return  null;
+        return idPricebookToProductIdWithPricebookEntry;
     }
 }

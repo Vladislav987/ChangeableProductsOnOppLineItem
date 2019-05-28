@@ -5,90 +5,55 @@
 
 public with sharing class OppLinItemHandler {
     public static  void onAfterInsert(List<OpportunityLineItem> opportunityLineItems){
-        //Test new Branch
         List<OpportunityLineItem> sortedOppLinItem = new List<OpportunityLineItem>();
-        Map<Id, List<Id>> productsIdWithPricebookIds = new Map<Id, List<Id>>();
-        List<PricebookEntry>  pricebookEntries = new List<PricebookEntry>();
-        List<OpportunityLineItem> oppLineItems = new List<OpportunityLineItem>();
+        Map<Id, OpportunityLineItem> oppLineItemsInformation = new Map<Id, OpportunityLineItem>();
+        Map<Id, Map<Id, PricebookEntry>>  idPricebookToProductIdWithPricebookEntry = new Map<Id, Map<Id,PricebookEntry>>();
         List<OpportunityLineItem> oppLineItemForInsert = new List<OpportunityLineItem>();
-        List<PricebookEntry> pricebookEntriesForInsert =  new List<PricebookEntry>();
-        List<Id> productsId = new List<Id>();
-        Id standardPricebookId;
+
 
         for(OpportunityLineItem  elem: opportunityLineItems){
             if (elem.Change_Product__c != elem.Product2Id && elem.Change_Product__c != null) {
                 sortedOppLinItem.add(elem);
-                productsId.add(elem.Change_Product__c);
-                productsId.add(elem.Product2Id);
-
             }
         }
 
-        pricebookEntries = OppLinItemHelper.getPricebookIEntries(productsId);
-        oppLineItems = OppLinItemHelper.getOppLineItemsWithPriceBookByIds(sortedOppLinItem);
-        productsIdWithPricebookIds = OppLinItemHelper.getProductIdsWithPricebookIds(pricebookEntries);
-        standardPricebookId = OppLinItemHelper.getStandardPricebookId(pricebookEntries);
+        oppLineItemsInformation = OppLinItemHelper.getOppLineItemsInformation(sortedOppLinItem);
+        idPricebookToProductIdWithPricebookEntry = OppLinItemHelper.getIdPricebookToProductIdWithPricebookEntry(oppLineItemsInformation);
 
-        for (OpportunityLineItem oppLineItem : oppLineItems){
-            if(productsIdWithPricebookIds.containsKey(oppLineItem.Change_Product__c)){
-                if (productsIdWithPricebookIds.get(oppLineItem.Change_Product__c).contains(oppLineItem.PricebookEntry.Pricebook2Id)) {
 
-                    OpportunityLineItem newOli = createOppLineItem(oppLineItem);
+        for (OpportunityLineItem oppLineItem : oppLineItemsInformation.values()){
+            if(idPricebookToProductIdWithPricebookEntry.containsKey(oppLineItem.Change_Product__c)){
+
+                if (idPricebookToProductIdWithPricebookEntry.get(oppLineItem.Change_Product__c).containsKey(oppLineItem.PricebookEntry.Pricebook2Id)) {
+                    PricebookEntry pricebookEntry = idPricebookToProductIdWithPricebookEntry.get(oppLineItem.Change_Product__c).get(oppLineItem.PricebookEntry.Pricebook2Id);
+                    OpportunityLineItem newOli = createOppLineItem(oppLineItem, pricebookEntry);
                     oppLineItemForInsert.add(newOli);
 
                 }else {
-                    PricebookEntry pricebookEntry = createPricebookEntryForProduct(oppLineItem);
-                    pricebookEntriesForInsert.add(pricebookEntry);
-
-                    OpportunityLineItem newOli = createOppLineItem(oppLineItem);
-                    oppLineItemForInsert.add(newOli);
+                    Trigger.new[0].addError('You can`t chose this Product because it isn`t in this Opportunity Pricebook');
+                    oppLineItemsInformation.remove(oppLineItem.Change_Product__c);
                 }
+
             }else{
-                PricebookEntry standardPricebookEntry = createStandardPricebookEntry(standardPricebookId, oppLineItem);
-                pricebookEntriesForInsert.add(standardPricebookEntry);
 
-                PricebookEntry pricebookEntry = createPricebookEntryForProduct(oppLineItem);
-                pricebookEntriesForInsert.add(pricebookEntry);
+                Trigger.new[0].addError('You can`t chose this Product because it isn`t in this Opportunity Pricebook');
+                oppLineItemsInformation.remove(oppLineItem.Change_Product__c);
 
-                OpportunityLineItem newOli = createOppLineItem(oppLineItem);
-                oppLineItemForInsert.add(newOli);
             }
         }
 
 
-        if (!oppLineItems.isEmpty()) {
-            insert pricebookEntriesForInsert;
+        if (!oppLineItemForInsert.isEmpty()) {
+            delete oppLineItemsInformation.values();
             insert oppLineItemForInsert;
-            delete oppLineItems;
         }
-
-
-
     }
 
-    private static PricebookEntry createStandardPricebookEntry(Id standardPricebookId, OpportunityLineItem oppLineItem) {
-        PricebookEntry standardPricebookEntry = new PricebookEntry();
-        standardPricebookEntry.Pricebook2Id = standardPricebookId;
-        standardPricebookEntry.UnitPrice = oppLineItem.UnitPrice;
-        standardPricebookEntry.IsActive = true;
-        standardPricebookEntry.Product2Id = oppLineItem.Change_Product__c;
-        return standardPricebookEntry;
-    }
-
-    private static PricebookEntry createPricebookEntryForProduct(OpportunityLineItem oppLineItem) {
-        PricebookEntry pricebookEntry = new PricebookEntry();
-        pricebookEntry.Product2Id = oppLineItem.Change_Product__c;
-        pricebookEntry.Pricebook2Id = oppLineItem.PricebookEntry.Pricebook2Id;
-        pricebookEntry.UnitPrice = oppLineItem.UnitPrice;
-        pricebookEntry.IsActive = true;
-        return pricebookEntry;
-    }
-
-    private static OpportunityLineItem createOppLineItem(OpportunityLineItem oppLineItem) {
+    private static OpportunityLineItem createOppLineItem(OpportunityLineItem oppLineItem, PricebookEntry pricebookEntry) {
         OpportunityLineItem newOli = new OpportunityLineItem();
         newOli.Product2Id = oppLineItem.Change_Product__c;
         newOli.Quantity = oppLineItem.Quantity;
-        newOli.UnitPrice = oppLineItem.UnitPrice;
+        newOli.UnitPrice = pricebookEntry.UnitPrice;
         newOli.OpportunityId = oppLineItem.OpportunityId;
         return newOli;
     }
