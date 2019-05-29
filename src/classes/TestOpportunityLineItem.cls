@@ -3,7 +3,7 @@
  */
 
 @IsTest
-private class TestOppLineItem {
+private class TestOpportunityLineItem {
     @IsTest(seeAllData = true)
     static void runTest() {
         List<OpportunityLineItem> opportunityLineItems = new List<OpportunityLineItem>();
@@ -11,12 +11,12 @@ private class TestOppLineItem {
         List<PricebookEntry> pricebookEntries = new List<PricebookEntry>();
 
         Pricebook2 pricebook2 = [SELECT Id, Name FROM Pricebook2 WHERE IsStandard = true LIMIT 1];
-        products = TestOppLineItemHelper.getProducts(5);
+        products = TestOpportunityLineItemGetter.getProducts(5);
 
         System.debug('PricebookId '+pricebook2);
         System.debug('Products ' + products);
 
-        pricebookEntries = TestOppLineItemHelper.getPricebookEntries(products, pricebook2);
+        pricebookEntries = TestOpportunityLineItemGetter.getPricebookEntries(products, pricebook2);
 
         Opportunity opportunity = new Opportunity();
         opportunity.Name = 'Test Opportunity';
@@ -25,7 +25,7 @@ private class TestOppLineItem {
         opportunity.Pricebook2Id = pricebook2.Id;
         insert opportunity;
 
-        opportunityLineItems = TestOppLineItemHelper.getOppLineItem(pricebookEntries, opportunity.Id);
+        opportunityLineItems = TestOpportunityLineItemGetter.getOppLineItem(pricebookEntries, opportunity.Id);
 
         Product2 product = new Product2();
         product.Name = 'Test Product';

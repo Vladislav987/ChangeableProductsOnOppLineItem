@@ -5,7 +5,7 @@
 trigger OpportunityLineItemTrigger on OpportunityLineItem (after update) {
     if(Trigger.isAfter){
         if (Trigger.isUpdate) {
-            OppLinItemHandler.onAfterInsert(Trigger.new);
+            OpportunityLineItemTriggerHandler.onAfterInsert(Trigger.new);
         }
     }
 }

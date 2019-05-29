@@ -3,7 +3,7 @@
  */
 
 
-public class TestOppLineItemHelper {
+public class TestOpportunityLineItemGetter {
 
    public static List<Product2> getProducts(Integer quantity) {
         List<Product2> product2s = new List<Product2>();
